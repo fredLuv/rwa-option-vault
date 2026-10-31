@@ -2,6 +2,8 @@
 
 An institutional-grade, quantitative **Barbell Portfolio** engine that pairs **100% principal custody in short-duration US Treasury bills** with **Google TimesFM 3.0 AI-forecasted Bull Call Spreads**—implementable either **On-Chain (ERC-4626 RWA Vault + Hyperliquid L1)** or **Off-Chain (Robinhood / Alpaca / IBKR API + `SGOV` + CBOE Options)**.
 
+📄 **[Read the Full Research & Architecture PDF Report: `Barbell_Portfolio_Simulation_Report.pdf`](./Barbell_Portfolio_Simulation_Report.pdf)** *(Includes the complete "A Simulation of a Barbell Portfolio" article, embedded backtest charts, Solidity & Broker API execution logs, slippage analysis, and TradFi/Hedge Fund/Crypto market-structure breakdown).*
+
 ---
 
 ## 🌟 Executive Summary & Dual-Track Architecture
