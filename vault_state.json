@@ -1,0 +1,46 @@
+{
+  "vaultAddress": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+  "rwaToken": "Sky sUSDS (ERC-4626)",
+  "annualTBillYieldPct": 4.7,
+  "protectedPrincipalUSD": 101102.1760022266,
+  "totalRWAValueUSD": 101102.1760022266,
+  "harvestableOptionBudgetUSD": 0.0,
+  "totalShares": 100000.0,
+  "currentEpochId": 1,
+  "activePositions": [],
+  "history": [
+    {
+      "epochId": 1,
+      "date": "2026-10-31",
+      "signal": {
+        "ticker": "BTC-USD",
+        "currentPrice": 77362.34,
+        "forecastPrice20d": 80560.69,
+        "expectedDriftPct": 4.13,
+        "realizedVol21d": 24.4,
+        "volCap75th": 36.65,
+        "sma50": 81894.42,
+        "trendBullish": false,
+        "volNormal": true,
+        "decision": "BULLISH_DEPLOY"
+      },
+      "orderTicket": {
+        "ticketId": "HL-OPT-BTC-1793410707",
+        "exchange": "Hyperliquid",
+        "underlying": "BTC",
+        "strategy": "Bull Call Spread (1.01x / 1.045x)",
+        "strikeLong": 78135.96,
+        "strikeShort": 80843.65,
+        "contracts": 0.4082,
+        "budgetSpentUSDC": 384.95,
+        "notionalExposureUSD": 31892.43,
+        "gearingRatio": 82.85,
+        "timestamp": "2026-10-31T01:38:27.443000Z",
+        "executionStatus": "FILLED_ON_CHAIN"
+      },
+      "status": "SETTLED",
+      "expiryPrice": 80207.325,
+      "grossPayout": 845.5311929999962
+    }
+  ]
+}
