@@ -1,21 +1,26 @@
-# Principal-Protected RWA Option Vault (Solution A)
+# Principal-Protected Barbell Option Vault (On-Chain RWA & Off-Chain Brokerage API)
 
-An institutional-grade, non-custodial decentralized structured note protocol that bridges **Tier-1 Real-World Asset (RWA) US Treasury yields** with **Google TimesFM 3.0 AI-forecasted option overlays on Hyperliquid L1**.
+An institutional-grade, quantitative **Barbell Portfolio** engine that pairs **100% principal custody in short-duration US Treasury bills** with **Google TimesFM 3.0 AI-forecasted Bull Call Spreads**—implementable either **On-Chain (ERC-4626 RWA Vault + Hyperliquid L1)** or **Off-Chain (Robinhood / Alpaca / IBKR API + `SGOV` + CBOE Options)**.
 
 ---
 
-## 🌟 Executive Summary & Value Proposition
+## 🌟 Executive Summary & Dual-Track Architecture
 
-Traditional on-chain structured products often suffer from:
-1. **DeFi Contagion & Depeg Risk**: Unregulated synthetic stablecoins (e.g., `xUSD`, `deUSD`, `USD0++`) depegging and destroying principal.
-2. **Smart Contract Complexity**: Complex nested rehypothecation layers (e.g., Penpie exploits) creating multi-million dollar vulnerabilities.
-3. **Negative Free Cash Flow / High Volatility**: Pure option-selling vaults (covered calls / strangles) suffering catastrophic tail-risk drawdowns in bear crashes.
+Following Nassim Taleb's *Barbell Strategy*, this repo automates a "ratcheting" principal floor:
+* **100% Principal Protection**: 100% of base capital is held in short-duration US Treasury vehicles (`Sky sUSDS` / `Circle USYC` / `Ondo USDY` on-chain, or `SGOV` / `BOXX` ETFs in a brokerage account) earning ~4.70% APY.
+* **Yield-in-Arrears Option Budget**: The engine **never risks deposited principal**. It skims *only* newly accrued monthly T-Bill interest above `protectedPrincipalUSD`.
+* **Google TimesFM 3.0 AI Regime Filter**: A foundation time-series model evaluates 20-day forward kinetic drift and realized volatility before every monthly epoch. During bear markets or volatility panics, zero options are bought and 100% of T-Bill yield compounds in cash.
+* **High-Water-Mark Ratchet Compounding**: Winning option payouts are swept back into the US Treasury reserve and **permanently added to the protected principal floor**, locking in gains forever.
 
-**Solution A solves this by eliminating third-party counterparty risk entirely:**
-* **100% Principal Protection**: 100% of user capital is deposited directly into bankruptcy-remote, daily-audited Tier-1 US Treasury tokens (`Sky sUSDS`, `Circle USYC`, or `Ondo USDY`) earning ~4.70% APY.
-* **Yield-in-Arrears Option Budget**: The vault **never touches deposited principal**. It skims *only* newly accrued monthly T-Bill interest above the `protectedPrincipalUSD` floor.
-* **Google TimesFM 3.0 AI Regime Filter**: An AI foundation time-series model selectively deploys option spreads *only* during statistically constructive kinetic drift windows. In bear/panic regimes, 100% of the yield is preserved in cash.
-* **High-Water-Mark Ratchet Compounding**: When option positions win, net profits are swept back into the RWA Treasury token and **permanently ratcheted into the protected principal floor**, locking in gains forever and compounding future T-Bill yield.
+### Which Track Should You Run? (On-Chain vs. Traditional Broker API)
+
+| Dimension | Track 1: On-Chain Vault (`vault_execution_bot.py`) | Track 2: Off-Chain Broker API (`broker_barbell_bot.py`) |
+| :--- | :--- | :--- |
+| **Best Use Case** | **Scaling a DeFi Protocol / Managing External TVL** (Earn 15% performance fees via smart contract) | **Compounding Personal / Proprietary Capital** (Zero smart-contract risk, SIPC insured) |
+| **Safe Base Asset** | `Sky sUSDS`, `Circle USYC`, or `Ondo USDY` (ERC-4626) | **`SGOV`** (iShares 0-3 Month T-Bill ETF) or **`BOXX`** |
+| **Option Execution Venue** | Hyperliquid L1 / Derive (Lyra) on-chain derivatives | **Robinhood (`robin_stocks`)**, **Alpaca (`OrderClass.MLEG`)**, or **IBKR** (CBOE Options) |
+| **Bid-Ask Slippage Drag** | **Higher (5%–15% of option premium)** on thinner on-chain books | **Ultra-Low (~1.5%–2.5% of premium)** on penny-wide CBOE `QQQ` / `GLD` / `IBIT` books |
+| **Contract Granularity** | **Fractional (`0.0001` units)** — 100% of monthly interest deployed | **100-Share Standard Lots** — leftover dividend change auto-reinvested into fractional `SGOV` |
 
 ---
 
@@ -23,64 +28,72 @@ Traditional on-chain structured products often suffer from:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                             END-TO-END AUTONOMOUS VAULT PIPELINE                               │
+│                        DUAL-TRACK AUTONOMOUS BARBELL EXECUTION PIPELINE                        │
 └────────────────────────────────────────────────────────────────────────────────────────────────┘
                                                 │
-   1. On-Chain Tier-1 Custody                   ▼
+   1. Base Treasury Custody (100% Floor)        ▼
   ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-  │ PrincipalProtectedRWAVault.sol (ERC-4626)                                                │
-  │ • Holds 100% in Sky sUSDS / Ondo USDY / Circle USYC (4.70% APY)                           │
-  │ • Enforces invariant: protectedPrincipalUSD can NEVER be touched by the option engine!    │
-  │ • Accrues monthly interest (~0.39%/mo) -> harvestableOptionBudgetUSD                     │
+  │ • On-Chain Track: PrincipalProtectedRWAVault.sol holds Sky sUSDS / USYC (4.70% APY)      │
+  │ • Broker Track:   Brokerage account holds SGOV (0-3 Mo T-Bill ETF, pays monthly cash div)│
+  │ • Invariant:      Base principal ($100,000) is NEVER touched for option purchases!       │
   └─────────────────────────────────────────────┬────────────────────────────────────────────┘
                                                 │
    2. Quantitative AI Signal Engine             ▼
   ┌──────────────────────────────────────────────────────────────────────────────────────────┐
   │ Google TimesFM 3.0 Foundation Forecaster                                                 │
-  │ • Analyzes 60-day rolling lookback of spot asset (BTC, ETH, SOL, QQQ, GLD)               │
-  │ • Forecasts 20-day forward kinetic price trajectory and calculates expected drift        │
-  │ • Regime Filter: Momentum (S0 >= SMA50 or Drift >= +2.0%) AND Volatility (RV <= 75th cap)│
+  │ • Analyzes 60-day rolling lookback of target asset (QQQ, GLD, IBIT, BTC, ETH)            │
+  │ • Forecasts 20-day forward kinetic price trajectory & checks 21d realized volatility cap │
   │ • Decisions:                                                                             │
-  │     - BULLISH_DEPLOY    ==> Skim accrued interest & buy Bull Call Spread                 │
-  │     - RISK_OFF_PRESERVE ==> Zero options bought; 100% interest stays in RWA to compound │
+  │     - BULLISH_DEPLOY    ==> Skim monthly T-Bill dividend & buy Bull Call Spread          │
+  │     - RISK_OFF_PRESERVE ==> Buy zero options; reinvest 100% of dividend into T-Bills     │
   └─────────────────────────────────────────────┬────────────────────────────────────────────┘
                                                 │
-   3. Exchange Execution Layer                  ▼
+   3. Execution Layer (On-Chain OR CBOE)        ▼
   ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-  │ Hyperliquid L1 API Bridge (https://api.hyperliquid.xyz/info)                             │
-  │ • Queries live orderbook mark price, funding rates, and open interest                    │
-  │ • Constructs Bull Call Spread: Buy 1.01x ATM Call / Sell 1.045x OTM Call                 │
-  │ • Generates verified order ticket with full notional gearing (~40x–85x on option budget) │
+  │ • Track 1 (On-Chain): Hyperliquid L1 API Bridge (fractional synthetic/option spread)     │
+  │ • Track 2 (Broker):   Robinhood (`order_buy_option_spread`) or Alpaca (`OrderClass.MLEG`)│
+  │   Constructs atomic 2-leg Bull Call Spread (e.g., Buy QQQ $700 Call / Sell $705 Call)    │
+  │   and reinvests any leftover unspent dividend change straight back into SGOV shares.     │
   └─────────────────────────────────────────────┬────────────────────────────────────────────┘
                                                 │
    4. High-Water-Mark Settlement Ratchet        ▼
   ┌──────────────────────────────────────────────────────────────────────────────────────────┐
   │ Epoch Settlement & Principal Ratchet Loop                                                │
-  │ • At expiry: computes intrinsic option payoff per unit                                   │
-  │ • Protocol Performance Fee (15%) deducted on net profit (Founder revenue engine)         │
-  │ • Net winnings deposited into Tier-1 RWA Treasury token                                  │
-  │ • ==> RATCHET UP PROTECTED PRINCIPAL FLOOR!                                              │
-  │   (Option wins become permanent capital that increases future monthly T-Bill yield!)     │
+  │ • Winning option payouts are swept back into sUSDS (On-Chain) or SGOV shares (Broker)    │
+  │ • ==> PERMANENTLY RATCHETS UP PROTECTED PRINCIPAL FLOOR!                                 │
   └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 Quantitative Backtest Results (2021–2026 Real Market Data)
+## 📊 Idealized Backtest Results (2021–2026) & Real-World Slippage Tradeoffs
 
-Simulated across the full **2021–2026 market cycle** (including the brutal **2022 bear market** where Nasdaq crashed **-33%** and Bitcoin crashed **-75%**) starting from an initial deposit of **$100,000 USDC**:
+Simulated across the full **2021–2026 market cycle** (including the **2022 bear market** where Nasdaq `QQQ` fell **-33%** and `BTC` fell **-75%**) starting from **$100,000 USD**:
 
-| Strategy | Initial Deposit | Final Vault NAV | Total Return | APY (CAGR) | Annual Volatility | **Max Principal Drawdown** | Avg Option Gearing | **Founder Fees (@ $10M TVL)** |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| *Baseline: Plain T-Bills (4.70%)* | $100,000 | $126,820 | +26.8% | 4.70% | 0.00% | 0.00% | 0.00x | $0 |
-| **Vault 1: RWA + Gold (`PAXG`) Pure Skim** | $100,000 | **$131,304** | **+31.3%** | **5.41%** | 1.27% | **0.00%** | 0.55x | **$175,263** |
-| **Vault 2: RWA + Nasdaq (`QQQ`) Pure Skim**| $100,000 | **$131,302** | **+31.3%** | **5.41%** | 1.51% | **0.00%** | 0.53x | **$221,277** |
-| **Vault 3: RWA + `QQQ` Collar-Boosted**    | $100,000 | **$132,993** | **+33.0%** | **5.67%** | 1.55% | **0.00%** | 0.40x | **$239,553** |
-| **Vault 4: RWA + `BTC` Collar-Boosted**    | $100,000 | **$130,074** | **+30.1%** | **5.14%** | 1.50% | **0.00%** | 0.28x | **$180,705** |
+| Strategy (Idealized Backtest) | Initial Deposit | Final NAV | Total Return | Idealized APY | Annual Vol | **Max Principal Drawdown** | Avg Option Gearing |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| *Baseline: Plain T-Bills (4.70%)* | $100,000 | $126,820 | +26.8% | 4.70% | 0.00% | 0.00% | 0.00x |
+| **Barbell 1: T-Bills + Gold (`GLD`) Pure Skim** | $100,000 | **$131,304** | **+31.3%** | **5.41%** | 1.27% | **0.00%** | 0.55x |
+| **Barbell 2: T-Bills + Nasdaq (`QQQ`) Pure Skim**| $100,000 | **$131,302** | **+31.3%** | **5.41%** | 1.51% | **0.00%** | 0.53x |
+| **Barbell 3: T-Bills + `QQQ` Collar-Boosted**    | $100,000 | **$132,993** | **+33.0%** | **5.67%** | 1.55% | **0.00%** | 0.40x |
+| **Barbell 4: T-Bills + `BTC` Collar-Boosted**    | $100,000 | **$130,074** | **+30.1%** | **5.14%** | 1.50% | **0.00%** | 0.28x |
 
-### Key Backtest Insights
-1. **Zero Drawdown in 2022**: While underlying equity and crypto indices cratered by 33% to 75%, the vault's principal ratchet **never declined by a single basis point** (0.00% max drawdown).
-2. **Asymmetric Convexity**: A tiny monthly budget of ~$390–$550 in T-Bill yield buys massive notional upside exposure ($30,000+), paying out $1,100 to $2,300 during breakout months.
+---
+
+### ⚠️ Reality Check: Idealized Backtest vs. Live Trading Slippage
+
+> **Important Quantitative Disclaimer**: The table above represents an **idealized theoretical backtest** priced using Black-Scholes with continuous fractional contract sizing. Any real-world deployment faces four concrete execution frictions that reduce realized APY:
+
+1. **Multi-Leg Bid-Ask Slippage (Why CBOE Beats On-Chain for Personal Capital)**:
+   * **On-Chain Options Problem**: Crossing the bid-ask spread on two legs (buying $K_{\text{long}}$ and selling $K_{\text{short}}$) on thinner on-chain option books typically costs **5% to 15% of the option premium** in slippage. Because your monthly option budget is ~0.39% of AUM, a 10% premium slippage shaves **~40 to 60 bps off your annual APY**.
+   * **The Brokerage API Fix (`broker_barbell_bot.py`)**: By executing on ultra-liquid CBOE penny-pilot ETFs (`QQQ`, `SPY`, `GLD`, `IBIT`), bid-ask spreads are **$0.01 to $0.03 per leg** (~$0.04/sh on a $2.21 spread = **only ~1.78% premium drag**, or <10 bps/yr).
+2. **The 100-Share Lot-Size Granularity Constraint**:
+   * On-chain simulation assumes you can spend exactly $391.67 to buy `0.4082` contracts. In US equity options, 1 contract = **100 shares**, meaning a $5-wide `QQQ` call spread costs **$225.00** per contract.
+   * **How `broker_barbell_bot.py` handles this**: The bot dynamically selects the optimal strike width ($1 to $15 wide) so `cost_per_contract <= monthly_dividend`, buys an integer number of spreads (e.g., 1x `QQQ` $700/$705 Call Spread for $225.00), and **immediately sweeps the remaining $166.67 into fractional `SGOV` shares** so zero cash sits idle. For smaller accounts (<$50k), the bot automatically falls back to lower-priced liquid ETFs like **`IBIT`** (~$44/sh, where 1 spread costs only ~$35–$60).
+3. **Dynamic Volatility Skew & Pin Risk at Expiration**:
+   * During rapid breakout rallies, market makers widen OTM call implied volatility. Furthermore, if the ETF closes between $K_{\text{long}}$ and $K_{\text{short}}$ on expiration Friday, you must close the spread 15–30 minutes before the 4:00 PM ET bell to avoid weekend pin/assignment risk (costing an extra $0.02–$0.04/sh in exit slippage).
+4. **Interest-Rate Cyclicality**:
+   * The backtest holds T-Bill yield constant at 4.70% to isolate option overlay performance. If short-term Fed rates fall to 2.5%, your monthly pure-skim option budget shrinks proportionally.
 
 ---
 
@@ -88,27 +101,23 @@ Simulated across the full **2021–2026 market cycle** (including the brutal **2
 
 ```
 rwa-option-vault/
-├── PrincipalProtectedRWAVault.sol   # Production Solidity ERC-4626 smart contract
-├── vault_execution_bot.py           # Autonomous quant bot (TimesFM + Hyperliquid L1 bridge)
-├── simulate_solution_a_vault.py     # Comprehensive quantitative backtester & dashboard generator
+├── PrincipalProtectedRWAVault.sol   # Track 1: Production Solidity ERC-4626 smart contract
+├── vault_execution_bot.py           # Track 1: On-Chain bot (TimesFM 3.0 + Hyperliquid L1 bridge)
+├── broker_barbell_bot.py            # Track 2: Off-Chain Broker bot (Robinhood / Alpaca / Paper + SGOV + CBOE)
+├── simulate_solution_a_vault.py     # Full 5-year quantitative backtester & dashboard generator
 ├── solution_a_backtest_summary.csv  # Granular backtest performance statistics
 ├── solution_a_vault_dashboard.png   # 4-panel performance & principal ratchet visualization
-├── vault_state.json                 # Persistent vault state & trade logs
+├── vault_state.json                 # Persistent state for Track 1 (On-Chain)
+├── broker_barbell_state.json        # Persistent state for Track 2 (Brokerage SGOV + CBOE)
 ├── requirements.txt                 # Python dependencies
-├── .gitignore                       # Git ignore configuration
-└── README.md                        # Documentation & setup guide
+└── README.md                        # Documentation, architecture, & slippage analysis
 ```
 
 ---
 
-## 🚀 Quickstart & Setup Guide
+## 🚀 Quickstart & CLI Usage
 
-### 1. Prerequisites
-* Python 3.10+ (Recommended: Python 3.11)
-* Git
-
-### 2. Installation
-Clone the repository and set up a virtual environment:
+### 1. Installation
 
 ```bash
 git clone git@github.com:fredLuv/rwa-option-vault.git
@@ -119,67 +128,38 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Usage & CLI Commands
+### 2. Track 2: Off-Chain Brokerage Bot (`SGOV` + CBOE Options via Paper / Robinhood / Alpaca)
 
-#### A. Check Live Vault & Floor Status
-Inspect the current state of the vault, protected floor, and active positions:
 ```bash
-python vault_execution_bot.py --action status
+# Run in safe Paper Mode on QQQ (models real CBOE 100-share lot sizing & $0.04/sh slippage):
+python broker_barbell_bot.py --broker paper --symbol QQQ
+
+# Run on Gold (GLD) or BlackRock Bitcoin ETF (IBIT):
+python broker_barbell_bot.py --broker paper --symbol GLD
+python broker_barbell_bot.py --broker paper --symbol IBIT
+
+# Execute live on Robinhood (requires `pip install robin_stocks pyotp` + env vars RH_USERNAME, RH_PASSWORD, RH_TOTP_SECRET):
+python broker_barbell_bot.py --broker robinhood --symbol QQQ
+
+# Execute on Alpaca Multi-Leg Options API (requires env vars ALPACA_API_KEY, ALPACA_SECRET_KEY):
+python broker_barbell_bot.py --broker alpaca --symbol QQQ
 ```
 
-#### B. Run a New Monthly Execution Epoch
-Pulls live market context from Hyperliquid, runs Google TimesFM 3.0 inference, and places the Bull Call Spread:
+### 3. Track 1: On-Chain RWA Vault Bot (Hyperliquid L1 + `PrincipalProtectedRWAVault.sol`)
+
 ```bash
-# Run on Bitcoin:
+# Check live vault status:
+python vault_execution_bot.py --action status
+
+# Run monthly epoch with TimesFM 3.0 signal on BTC, ETH, or SOL:
 python vault_execution_bot.py --action run_epoch --asset BTC
 
-# Run on Ethereum:
-python vault_execution_bot.py --action run_epoch --asset ETH
-
-# Run on Solana:
-python vault_execution_bot.py --action run_epoch --asset SOL
-```
-
-#### C. Settle an Active Epoch & Ratchet Principal Floor
-Settles using live Hyperliquid mark prices, collects performance fees, and permanently ratchets the floor:
-```bash
-# Settle using live market mark price:
+# Settle active epoch and ratchet up principal floor:
 python vault_execution_bot.py --action settle --asset BTC
 
-# Or simulate settlement at an explicit target price (e.g., $80,500):
-python vault_execution_bot.py --action settle --asset BTC --expiry_px 80500.0
-```
-
-#### D. Run the End-to-End Live Simulation Demo
-Runs an entire epoch from yield accrual, TimesFM inference, Hyperliquid order placement, through settlement:
-```bash
+# Run end-to-end live simulation demo:
 python vault_execution_bot.py --action simulate_demo --asset BTC
 ```
-
-#### E. Re-run Full Historical Backtest (2021–2026)
-Simulates all 4 vault strategies across historical data and regenerates the 4-panel dashboard:
-```bash
-python simulate_solution_a_vault.py
-```
-
----
-
-## 🔒 Smart Contract Security & Invariants
-
-In [`PrincipalProtectedRWAVault.sol`](PrincipalProtectedRWAVault.sol), two critical on-chain invariants protect investor capital:
-
-1. **Strict Balance Floor Invariant**:
-   ```solidity
-   // In harvestYieldToOptionEngine():
-   require(totalRWAValueUSD() + 1 >= protectedPrincipalUSD, "INVARIANT_BREACH: PRINCIPAL_FLOOR_VIOLATED");
-   ```
-   No yield harvest can ever decrease total vault assets below `protectedPrincipalUSD`.
-2. **One-Way Ratchet**:
-   ```solidity
-   // In settleOptionPayout():
-   protectedPrincipalUSD += netCompoundedProfit;
-   ```
-   Once option gains are ratcheted into the protected principal, they become permanent base capital that cannot be removed by subsequent losing months.
 
 ---
 

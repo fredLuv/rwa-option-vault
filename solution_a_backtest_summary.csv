@@ -1,5 +1,5 @@
 Strategy,Initial_USD,Final_NAV_USD,Total_Return_Pct,CAGR_APY_Pct,Annual_Vol_Pct,Principal_Max_DD_Pct,Avg_Option_Gearing,Protocol_Fees_Per_10M_TVL
 Vault 1: RWA + Gold (PAXG) Pure Yield-Skim,100000,131304.0,31.3,5.41,1.27,0.0,0.55x,175263.0
 Vault 2: RWA + Nasdaq (QQQ) Pure Yield-Skim,100000,131302.0,31.3,5.41,1.51,0.0,0.53x,221277.0
-Vault 3: RWA + Nasdaq (QQQ) Collar-Boosted,100000,132993.0,33.0,5.67,1.55,0.0,0.40x,239553.0
+Vault 3: RWA + Nasdaq (QQQ) Collar-Boosted,100000,132993.0,33.0,5.67,1.55,0.0,0.40x,239552.0
 Vault 4: RWA + Bitcoin (BTC) Collar-Boosted,100000,130074.0,30.1,5.14,1.5,0.0,0.28x,180705.0

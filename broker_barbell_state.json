@@ -1,0 +1,27 @@
+{
+  "brokerMode": "paper",
+  "baseTBillTicker": "SGOV",
+  "sgovShares": 1001.6667,
+  "sgovSharePrice": 100.0,
+  "protectedPrincipalFloorUSD": 100166.67,
+  "availableDividendCashUSD": 0.0,
+  "activeOptionSpreads": [
+    {
+      "symbol": "QQQ",
+      "expirationDate": "2026-11-30",
+      "strikeLong": 700.0,
+      "strikeShort": 705.0,
+      "theoDebitPerShare": 2.21,
+      "slippagePerShare": 0.04,
+      "limitDebitPerShare": 2.25,
+      "slippageDragPctOfBudget": 1.78,
+      "contracts": 1,
+      "totalDebitSpentUSD": 225.0,
+      "maxPotentialPayoutUSD": 500.0,
+      "payoffMultiple": 2.22,
+      "unspentCashReinvestedSGOV": 166.67,
+      "status": "READY"
+    }
+  ],
+  "epochHistory": []
+}
